@@ -4,7 +4,7 @@ Shared GitHub Actions for pilue org site publishing pipelines.
 
 ## publish-site
 
-Sends an HMAC-signed publish request to the platform-api, triggering a build and deploy into [davidcloud]{https://davidcloud.co.uk)
+Sends an HMAC-signed publish request to the platform-api, triggering a build and deploy into [davidcloud](https://davidcloud.co.uk)
 
 ```yaml
 - uses: pilue/actions/publish-site@main
