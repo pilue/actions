@@ -24,7 +24,7 @@ Sends an HMAC-signed publish request to the platform-api, triggering a build and
 
 | Input | Required | Description |
 |---|---|---|
-| `domain` | yes | Registered domain, e.g. example.pilue.co.uk` |
+| `domain` | yes | Registered domain, e.g. `example.pilue.co.uk` |
 | `repo` | yes | HTTPS clone URL of the source repo |
 | `ref` | yes | Git ref to build (branch/tag/SHA) |
 | `preview` | yes | `true` for preview deploy, `false` for production |
