@@ -97,7 +97,7 @@ runs:
           -X POST "https://api.davidcloud.co.uk/publish" \
           -H "Content-Type: application/json" \
           -H "Accept: application/json" \
-          -H "User-Agent: GitHub-Actions/site-matthews-bird-tables" \
+          -H "User-Agent: GitHub-Actions/pilue-publish-site" \
           -H "X-Publish-Token: ${HMAC_SECRET}" \
           -H "X-Hub-Signature-256: ${SIG}" \
           -d "${PAYLOAD}")
