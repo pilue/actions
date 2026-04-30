@@ -1,0 +1,9 @@
+# pre-commit cache
+.pre-commit-cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
