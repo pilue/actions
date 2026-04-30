@@ -42,6 +42,7 @@ runs:
   using: composite
   steps:
     - name: Send publish request
+      id: publish
       shell: bash
       env:
         DOMAIN: ${{ inputs.domain }}
@@ -114,3 +115,69 @@ runs:
           echo "Publish request failed with HTTP ${HTTP_STATUS}"
           exit 1
         fi
+
+        DISPATCH_TIME=$(python3 -c "import json,sys; print(json.load(open('/tmp/platform_api_response.txt')).get('dispatch_time',''))" 2>/dev/null || true)
+        echo "dispatch_time=${DISPATCH_TIME}" >> "$GITHUB_OUTPUT"
+
+    - name: Wait for deployment to complete
+      shell: bash
+      env:
+        DOMAIN: ${{ inputs.domain }}
+        DISPATCH_TIME: ${{ steps.publish.outputs.dispatch_time }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "${DISPATCH_TIME}" ]]; then
+          echo "No dispatch_time in response — skipping wait."
+          exit 0
+        fi
+
+        STATUS_URL="https://api.davidcloud.co.uk/status?domain=${DOMAIN}&since=${DISPATCH_TIME}"
+        POLL_INTERVAL=15
+        MAX_WAIT=1200  # 20 minutes
+        elapsed=0
+
+        echo "Waiting for deployment of ${DOMAIN} to complete..."
+        echo "Polling: ${STATUS_URL}"
+
+        while true; do
+          HTTP_STATUS=$(curl -s -o /tmp/status_response.txt -w "%{http_code}" "${STATUS_URL}" || true)
+          BODY=$(cat /tmp/status_response.txt)
+
+          STATUS=$(python3 -c "import json,sys; print(json.loads('${BODY}').get('status','unknown'))" 2>/dev/null || echo "unknown")
+          CONCLUSION=$(python3 -c "import json,sys; v=json.loads('${BODY}').get('conclusion'); print(v if v else '')" 2>/dev/null || true)
+          RUN_URL=$(python3 -c "import json,sys; v=json.loads('${BODY}').get('run_url'); print(v if v else '')" 2>/dev/null || true)
+
+          if [[ -n "${RUN_URL}" ]]; then
+            echo "Workflow run: ${RUN_URL}"
+          fi
+
+          case "${STATUS}" in
+            completed)
+              echo "Deployment ${CONCLUSION:-unknown}."
+              if [[ "${CONCLUSION}" != "success" ]]; then
+                echo "Workflow did not succeed (conclusion: ${CONCLUSION}). See run for details."
+                exit 1
+              fi
+              echo "Deployment of ${DOMAIN} succeeded."
+              exit 0
+              ;;
+            in_progress)
+              echo "  [${elapsed}s] Build/deploy in progress..."
+              ;;
+            queued)
+              echo "  [${elapsed}s] Workflow queued, waiting to start..."
+              ;;
+            *)
+              echo "  [${elapsed}s] Waiting for workflow run to appear... (status: ${STATUS})"
+              ;;
+          esac
+
+          if [[ "${elapsed}" -ge "${MAX_WAIT}" ]]; then
+            echo "Timed out after ${MAX_WAIT}s waiting for deployment to complete."
+            exit 1
+          fi
+
+          sleep "${POLL_INTERVAL}"
+          elapsed=$((elapsed + POLL_INTERVAL))
+        done
