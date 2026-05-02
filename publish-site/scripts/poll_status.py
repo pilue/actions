@@ -26,7 +26,10 @@ def fetch_status(status_url, hmac_secret):
     """
     req = urllib.request.Request(
         status_url,
-        headers={"X-Publish-Token": hmac_secret},
+        headers={
+            "X-Publish-Token": hmac_secret,
+            "User-Agent": "davidcloud-deploy/1.0",
+        },
     )
     try:
         with urllib.request.urlopen(req) as resp:
