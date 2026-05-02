@@ -18,7 +18,11 @@ import urllib.request
 def fetch_status(status_url, hmac_secret):
     """
     Fetch the deployment status from platform-api.
-    Returns the parsed JSON dict, or an empty dict on any error.
+
+    Returns (data: dict, error: str | None).
+    - On success: (parsed JSON dict, None)
+    - On HTTP error: ({}, "<status code> <body snippet>")
+    - On network error: ({}, "<exception message>")
     """
     req = urllib.request.Request(
         status_url,
@@ -26,9 +30,15 @@ def fetch_status(status_url, hmac_secret):
     )
     try:
         with urllib.request.urlopen(req) as resp:
-            return json.loads(resp.read().decode())
-    except Exception:
-        return {}
+            return json.loads(resp.read().decode()), None
+    except urllib.error.HTTPError as exc:
+        try:
+            body = exc.read().decode(errors="replace")[:200]
+        except Exception:
+            body = ""
+        return {}, f"HTTP {exc.code}: {body}"
+    except Exception as exc:
+        return {}, str(exc)
 
 
 def build_status_url(domain, dispatch_time):
@@ -53,12 +63,28 @@ def run_poll_loop(
 
     elapsed = 0
     last_run_url = ""
+    consecutive_errors = 0
 
     while True:
-        data = fetch_status(status_url, hmac_secret)
+        data, fetch_error = fetch_status(status_url, hmac_secret)
         status = data.get("status", "unknown")
         conclusion = data.get("conclusion", "")
         run_url = data.get("run_url", "")
+
+        if fetch_error:
+            consecutive_errors += 1
+            # Fail immediately on auth/config errors — retrying won't help.
+            if fetch_error.startswith("HTTP 4") or fetch_error.startswith("HTTP 5"):
+                return False, f"Status check failed: {fetch_error}"
+            # For transient network errors allow a few retries.
+            if consecutive_errors >= 3:
+                return (
+                    False,
+                    f"Status check failed after {consecutive_errors} consecutive errors: {fetch_error}",
+                )
+            print(f"  [{elapsed}s] Status check error (will retry): {fetch_error}")
+        else:
+            consecutive_errors = 0
 
         if run_url and run_url != last_run_url:
             print(f"Deployment run: {run_url}")
@@ -76,10 +102,8 @@ def run_poll_loop(
             print(f"  [{elapsed}s] Deployment in progress...")
         elif status == "queued":
             print(f"  [{elapsed}s] Deployment queued, waiting to start...")
-        else:
-            print(
-                f"  [{elapsed}s] Waiting for workflow run to appear... (status: {status})"
-            )
+        elif not fetch_error:
+            print(f"  [{elapsed}s] Waiting for deployment to start...")
 
         if elapsed >= max_wait:
             return (
