@@ -46,6 +46,24 @@ def build_status_url(domain, dispatch_time):
     return f"https://api.davidcloud.co.uk/status?{params}"
 
 
+def _http_error_message(fetch_error):
+    """Return a human-readable message for an HTTP error from fetch_status."""
+    # fetch_error is "HTTP <code>: <body snippet>"
+    code = fetch_error.split()[1].rstrip(":")
+    if code in ("401", "403"):
+        return (
+            f"Status check failed ({code} Forbidden).\n"
+            "This usually means the HMAC secret is wrong or missing.\n"
+            "Check that PUBLISH_HMAC_SECRET is correctly set in this repository's secrets."
+        )
+    if code == "404":
+        return (
+            "Status check failed (404 Not Found).\n"
+            "The domain may not be registered with platform-api yet."
+        )
+    return f"Status check failed: {fetch_error}"
+
+
 def run_poll_loop(
     domain, dispatch_time, hmac_secret, poll_interval=15, max_wait=1200, _sleep=None
 ):
@@ -75,7 +93,8 @@ def run_poll_loop(
             consecutive_errors += 1
             # Fail immediately on auth/config errors — retrying won't help.
             if fetch_error.startswith("HTTP 4") or fetch_error.startswith("HTTP 5"):
-                return False, f"Status check failed: {fetch_error}"
+                friendly = _http_error_message(fetch_error)
+                return False, friendly
             # For transient network errors allow a few retries.
             if consecutive_errors >= 3:
                 return (

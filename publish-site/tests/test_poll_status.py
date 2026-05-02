@@ -185,7 +185,7 @@ class TestRunPollLoop(unittest.TestCase):
         self.assertIn("Timed out", msg)
 
     def test_http_error_fails_immediately(self):
-        # A 4xx/5xx error should abort immediately, not retry
+        # A 5xx error should abort immediately with a generic message
         responses = [({}, "HTTP 500: Server misconfiguration")]
         with patch.object(
             poll_status, "fetch_status", side_effect=self._make_fetch(responses)
@@ -199,7 +199,7 @@ class TestRunPollLoop(unittest.TestCase):
         self.assertFalse(success)
         self.assertIn("HTTP 500", msg)
 
-    def test_http_401_fails_immediately(self):
+    def test_http_401_fails_with_friendly_message(self):
         responses = [({}, "HTTP 401: Invalid publish token")]
         with patch.object(
             poll_status, "fetch_status", side_effect=self._make_fetch(responses)
@@ -211,7 +211,35 @@ class TestRunPollLoop(unittest.TestCase):
                 _sleep=lambda x: None,
             )
         self.assertFalse(success)
-        self.assertIn("HTTP 401", msg)
+        self.assertIn("PUBLISH_HMAC_SECRET", msg)
+
+    def test_http_403_fails_with_friendly_message(self):
+        responses = [({}, "HTTP 403: error code: 1010")]
+        with patch.object(
+            poll_status, "fetch_status", side_effect=self._make_fetch(responses)
+        ):
+            success, msg = poll_status.run_poll_loop(
+                "example.pilue.co.uk",
+                "ts",
+                "secret",
+                _sleep=lambda x: None,
+            )
+        self.assertFalse(success)
+        self.assertIn("PUBLISH_HMAC_SECRET", msg)
+
+    def test_http_404_fails_with_friendly_message(self):
+        responses = [({}, "HTTP 404: Not Found")]
+        with patch.object(
+            poll_status, "fetch_status", side_effect=self._make_fetch(responses)
+        ):
+            success, msg = poll_status.run_poll_loop(
+                "example.pilue.co.uk",
+                "ts",
+                "secret",
+                _sleep=lambda x: None,
+            )
+        self.assertFalse(success)
+        self.assertIn("registered", msg)
 
     def test_transient_network_errors_allow_retries(self):
         # Two transient errors then success — should recover
