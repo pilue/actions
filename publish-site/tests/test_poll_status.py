@@ -185,7 +185,7 @@ class TestRunPollLoop(unittest.TestCase):
         self.assertIn("Timed out", msg)
 
     def test_http_error_fails_immediately(self):
-        # A 5xx error should abort immediately with a generic message
+        # A 5xx error should abort immediately with a server-error friendly message
         responses = [({}, "HTTP 500: Server misconfiguration")]
         with patch.object(
             poll_status, "fetch_status", side_effect=self._make_fetch(responses)
@@ -197,7 +197,7 @@ class TestRunPollLoop(unittest.TestCase):
                 _sleep=lambda x: None,
             )
         self.assertFalse(success)
-        self.assertIn("HTTP 500", msg)
+        self.assertIn("hmac_secret", msg)
 
     def test_http_401_fails_with_friendly_message(self):
         responses = [({}, "HTTP 401: Invalid publish token")]
@@ -211,7 +211,7 @@ class TestRunPollLoop(unittest.TestCase):
                 _sleep=lambda x: None,
             )
         self.assertFalse(success)
-        self.assertIn("PUBLISH_HMAC_SECRET", msg)
+        self.assertIn("source_token", msg)
 
     def test_http_403_fails_with_friendly_message(self):
         responses = [({}, "HTTP 403: error code: 1010")]
@@ -225,7 +225,7 @@ class TestRunPollLoop(unittest.TestCase):
                 _sleep=lambda x: None,
             )
         self.assertFalse(success)
-        self.assertIn("PUBLISH_HMAC_SECRET", msg)
+        self.assertIn("source_token", msg)
 
     def test_http_404_fails_with_friendly_message(self):
         responses = [({}, "HTTP 404: Not Found")]

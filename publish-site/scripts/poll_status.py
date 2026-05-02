@@ -53,13 +53,19 @@ def _http_error_message(fetch_error):
     if code in ("401", "403"):
         return (
             f"Status check failed ({code} Forbidden).\n"
-            "This usually means the HMAC secret is wrong or missing.\n"
-            "Check that PUBLISH_HMAC_SECRET is correctly set in this repository's secrets."
+            "Access was denied by the server. Check that the source_token has the "
+            "correct scopes and that all required secrets are configured."
         )
     if code == "404":
         return (
             "Status check failed (404 Not Found).\n"
             "The domain may not be registered with platform-api yet."
+        )
+    if code.startswith("5"):
+        return (
+            f"Status check failed ({code} Server Error).\n"
+            "This may indicate a misconfiguration on the server side "
+            "(e.g. hmac_secret does not match the server's expected value)."
         )
     return f"Status check failed: {fetch_error}"
 
