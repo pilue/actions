@@ -65,6 +65,7 @@ runs:
     - name: Wait for deployment to complete
       shell: bash
       env:
+        PYTHONUNBUFFERED: "1"
         DOMAIN: ${{ inputs.domain }}
         DISPATCH_TIME: ${{ steps.publish.outputs.dispatch_time }}
         HMAC_SECRET: ${{ inputs.hmac_secret }}
