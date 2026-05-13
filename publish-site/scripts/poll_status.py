@@ -128,11 +128,13 @@ def run_poll_loop(
         if status == "completed":
             print(f"Deployment {conclusion or 'unknown'}.")
             if conclusion != "success":
-                print(f"Response data: {data!r}")
                 logs = data.get("logs")
                 if logs:
                     if isinstance(logs, list):
-                        print("\n".join(logs))
+                        for entry in logs:
+                            # Escape GHA workflow command sequences so they are
+                            # printed literally rather than interpreted by the runner.
+                            print(str(entry).replace("##[", "##-["))
                     else:
                         print(
                             f"Unexpected logs format ({type(logs).__name__}): {logs!r}"

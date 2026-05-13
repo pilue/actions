@@ -174,6 +174,25 @@ class TestRunPollLoop(unittest.TestCase):
         self.assertIn("Step failed: npm run build", output)
         self.assertIn("Error: Cannot find module 'astro'", output)
 
+    def test_failure_logs_gha_commands_are_escaped(self):
+        logs = ["##[endgroup]", "##[error]something bad"]
+        responses = [{"status": "completed", "conclusion": "failure", "logs": logs}]
+        printed = []
+        with patch.object(
+            poll_status, "fetch_status", side_effect=self._make_fetch(responses)
+        ):
+            with patch("builtins.print", side_effect=printed.append):
+                poll_status.run_poll_loop(
+                    "example.pilue.co.uk",
+                    "ts",
+                    "secret",
+                    _sleep=lambda x: None,
+                )
+        output = "\n".join(str(line) for line in printed)
+        self.assertNotIn("##[", output)
+        self.assertIn("##-[endgroup]", output)
+        self.assertIn("##-[error]something bad", output)
+
     def test_failure_without_logs_does_not_error(self):
         responses = [{"status": "completed", "conclusion": "failure"}]
         with patch.object(
