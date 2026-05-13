@@ -162,19 +162,31 @@ def write_logs(logs, env=None):
     Write deployment logs to GITHUB_STEP_SUMMARY (as a markdown code block)
     so they survive GHA's output stream closure at step end.
     Falls back to stdout if the summary file is not available.
+
+    logs may be:
+      - a list of strings (one entry per log line)
+      - a dict with a "lines" key containing a list of strings, and optionally
+        a "job" key identifying the source job
     """
     if env is None:
         env = os.environ
     summary_path = env.get("GITHUB_STEP_SUMMARY", "")
 
-    if isinstance(logs, list):
+    if isinstance(logs, dict):
+        job = logs.get("job", "")
+        lines = [str(entry) for entry in logs.get("lines", [])]
+    elif isinstance(logs, list):
+        job = ""
         lines = [str(entry) for entry in logs]
     else:
+        job = ""
         lines = [f"Unexpected logs format ({type(logs).__name__}): {logs!r}"]
+
+    heading = f"### Deployment failure logs{f' ({job})' if job else ''}\n\n"
 
     if summary_path:
         with open(summary_path, "a") as f:
-            f.write("### Deployment failure logs\n\n```\n")
+            f.write(heading + "```\n")
             for line in lines:
                 f.write(line + "\n")
             f.write("```\n")

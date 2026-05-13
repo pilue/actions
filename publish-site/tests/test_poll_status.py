@@ -155,7 +155,7 @@ class TestRunPollLoop(unittest.TestCase):
         self.assertFalse(success)
         self.assertIn("conclusion: failure", msg)
 
-    def test_failure_with_logs_writes_to_summary(self):
+    def test_failure_with_logs_list_writes_to_summary(self):
         import tempfile
 
         logs = ["Step failed: npm run build", "Error: Cannot find module 'astro'"]
@@ -177,6 +177,33 @@ class TestRunPollLoop(unittest.TestCase):
             summary = f.read()
         self.assertIn("Step failed: npm run build", summary)
         self.assertIn("Error: Cannot find module 'astro'", summary)
+
+    def test_failure_with_logs_dict_writes_to_summary(self):
+        import tempfile
+
+        logs = {
+            "job": "publish",
+            "lines": ["Step failed: docker build", "ERROR: exit code 1"],
+        }
+        responses = [{"status": "completed", "conclusion": "failure", "logs": logs}]
+        with tempfile.NamedTemporaryFile(mode="r", suffix=".md", delete=False) as f:
+            summary_path = f.name
+        with patch.object(
+            poll_status, "fetch_status", side_effect=self._make_fetch(responses)
+        ):
+            success, msg = poll_status.run_poll_loop(
+                "example.pilue.co.uk",
+                "ts",
+                "secret",
+                _sleep=lambda x: None,
+                _env={"GITHUB_STEP_SUMMARY": summary_path},
+            )
+        self.assertFalse(success)
+        with open(summary_path) as f:
+            summary = f.read()
+        self.assertIn("publish", summary)
+        self.assertIn("Step failed: docker build", summary)
+        self.assertIn("ERROR: exit code 1", summary)
 
     def test_failure_with_logs_falls_back_to_stdout_without_summary(self):
         logs = ["Step failed: npm run build", "Error: Cannot find module 'astro'"]
