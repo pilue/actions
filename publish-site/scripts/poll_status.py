@@ -128,19 +128,17 @@ def run_poll_loop(
         if status == "completed":
             print(f"Deployment {conclusion or 'unknown'}.")
             if conclusion != "success":
-                print(f"[debug] Full response: {data!r}")
+                print(f"Response data: {data!r}")
                 logs = data.get("logs")
                 if logs:
                     if isinstance(logs, list):
                         print("\n".join(logs))
                     else:
                         print(
-                            f"[unexpected logs format: {type(logs).__name__}] {logs!r}"
+                            f"Unexpected logs format ({type(logs).__name__}): {logs!r}"
                         )
                 else:
-                    print(
-                        f"[debug] No logs field in response. Keys: {list(data.keys())}"
-                    )
+                    print(f"No logs in response. Keys: {list(data.keys())}")
                 return (
                     False,
                     f"Deployment did not succeed (conclusion: {conclusion}).",
