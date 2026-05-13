@@ -128,6 +128,7 @@ def run_poll_loop(
         if status == "completed":
             print(f"Deployment {conclusion or 'unknown'}.")
             if conclusion != "success":
+                print(f"[debug] Full response: {data!r}")
                 logs = data.get("logs")
                 if logs:
                     if isinstance(logs, list):
