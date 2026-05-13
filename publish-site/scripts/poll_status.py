@@ -126,7 +126,6 @@ def run_poll_loop(
             last_run_url = run_url
 
         if status == "completed":
-            print(f"Deployment {conclusion or 'unknown'}.")
             if conclusion != "success":
                 logs = data.get("logs")
                 if logs:
@@ -141,6 +140,8 @@ def run_poll_loop(
                         )
                 else:
                     print(f"No logs in response. Keys: {list(data.keys())}")
+            print(f"Deployment {conclusion or 'unknown'}.")
+            if conclusion != "success":
                 return (
                     False,
                     f"Deployment did not succeed (conclusion: {conclusion}).",
