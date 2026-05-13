@@ -44,8 +44,10 @@ def fetch_status(status_url, hmac_secret):
         return {}, str(exc)
 
 
-def build_status_url(domain, dispatch_time):
-    params = urllib.parse.urlencode({"domain": domain, "since": dispatch_time})
+def build_status_url(domain, dispatch_time, log_lines=50):
+    params = urllib.parse.urlencode(
+        {"domain": domain, "since": dispatch_time, "log_lines": log_lines}
+    )
     return f"https://api.davidcloud.co.uk/status?{params}"
 
 
@@ -74,7 +76,13 @@ def _http_error_message(fetch_error):
 
 
 def run_poll_loop(
-    domain, dispatch_time, hmac_secret, poll_interval=15, max_wait=1200, _sleep=None
+    domain,
+    dispatch_time,
+    hmac_secret,
+    log_tail_lines=50,
+    poll_interval=15,
+    max_wait=1200,
+    _sleep=None,
 ):
     """
     Poll until the deployment completes, times out, or fails.
@@ -84,7 +92,7 @@ def run_poll_loop(
     if _sleep is None:
         _sleep = time.sleep
 
-    status_url = build_status_url(domain, dispatch_time)
+    status_url = build_status_url(domain, dispatch_time, log_tail_lines)
     print(f"Waiting for deployment of {domain} to complete...")
     print(f"Polling: {status_url}")
 
@@ -115,15 +123,17 @@ def run_poll_loop(
             consecutive_errors = 0
 
         if run_url and run_url != last_run_url:
-            print(f"Deployment run: {run_url}")
             last_run_url = run_url
 
         if status == "completed":
             print(f"Deployment {conclusion or 'unknown'}.")
             if conclusion != "success":
+                logs = data.get("logs")
+                if logs:
+                    print("\n".join(logs))
                 return (
                     False,
-                    f"Deployment did not succeed (conclusion: {conclusion}). See run for details.",
+                    f"Deployment did not succeed (conclusion: {conclusion}).",
                 )
             return True, f"Deployment of {domain} succeeded."
         elif status == "in_progress":
@@ -150,12 +160,13 @@ def main(env=None):
     domain = env["DOMAIN"]
     dispatch_time = env.get("DISPATCH_TIME", "").strip()
     hmac_secret = env["HMAC_SECRET"]
+    log_tail_lines = int(env.get("LOG_TAIL_LINES", "50"))
 
     if not dispatch_time:
         print("No dispatch_time in response — skipping wait.")
         sys.exit(0)
 
-    success, message = run_poll_loop(domain, dispatch_time, hmac_secret)
+    success, message = run_poll_loop(domain, dispatch_time, hmac_secret, log_tail_lines)
     print(message)
     sys.exit(0 if success else 1)
 

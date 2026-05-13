@@ -38,6 +38,10 @@ inputs:
     description: true to tear down a preview deployment (skips build)
     required: false
     default: "false"
+  log_tail_lines:
+    description: Number of log lines to request from the API for failed deployments.
+    required: false
+    default: "50"
 
 runs:
   using: composite
@@ -64,4 +68,5 @@ runs:
         DOMAIN: ${{ inputs.domain }}
         DISPATCH_TIME: ${{ steps.publish.outputs.dispatch_time }}
         HMAC_SECRET: ${{ inputs.hmac_secret }}
+        LOG_TAIL_LINES: ${{ inputs.log_tail_lines }}
       run: python3 ${{ github.action_path }}/scripts/poll_status.py

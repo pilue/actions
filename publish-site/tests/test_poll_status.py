@@ -88,6 +88,14 @@ class TestBuildStatusUrl(unittest.TestCase):
         self.assertIn("domain=example.pilue.co.uk", url)
         self.assertIn("since=2026-01-01T00%3A00%3A00Z", url)
 
+    def test_url_contains_log_lines(self):
+        url = poll_status.build_status_url("example.pilue.co.uk", "ts", log_lines=25)
+        self.assertIn("log_lines=25", url)
+
+    def test_url_log_lines_default(self):
+        url = poll_status.build_status_url("example.pilue.co.uk", "ts")
+        self.assertIn("log_lines=50", url)
+
     def test_url_base(self):
         url = poll_status.build_status_url("example.pilue.co.uk", "ts")
         self.assertTrue(url.startswith("https://api.davidcloud.co.uk/status"))
@@ -134,6 +142,39 @@ class TestRunPollLoop(unittest.TestCase):
         self.assertEqual(sleep_calls, [])  # no sleep needed
 
     def test_failure_conclusion(self):
+        responses = [{"status": "completed", "conclusion": "failure"}]
+        with patch.object(
+            poll_status, "fetch_status", side_effect=self._make_fetch(responses)
+        ):
+            success, msg = poll_status.run_poll_loop(
+                "example.pilue.co.uk",
+                "ts",
+                "secret",
+                _sleep=lambda x: None,
+            )
+        self.assertFalse(success)
+        self.assertIn("conclusion: failure", msg)
+
+    def test_failure_with_logs_prints_them(self):
+        logs = ["Step failed: npm run build", "Error: Cannot find module 'astro'"]
+        responses = [{"status": "completed", "conclusion": "failure", "logs": logs}]
+        printed = []
+        with patch.object(
+            poll_status, "fetch_status", side_effect=self._make_fetch(responses)
+        ):
+            with patch("builtins.print", side_effect=printed.append):
+                success, msg = poll_status.run_poll_loop(
+                    "example.pilue.co.uk",
+                    "ts",
+                    "secret",
+                    _sleep=lambda x: None,
+                )
+        self.assertFalse(success)
+        output = "\n".join(str(line) for line in printed)
+        self.assertIn("Step failed: npm run build", output)
+        self.assertIn("Error: Cannot find module 'astro'", output)
+
+    def test_failure_without_logs_does_not_error(self):
         responses = [{"status": "completed", "conclusion": "failure"}]
         with patch.object(
             poll_status, "fetch_status", side_effect=self._make_fetch(responses)
@@ -278,7 +319,7 @@ class TestRunPollLoop(unittest.TestCase):
         self.assertFalse(success)
         self.assertIn("consecutive errors", msg)
 
-    def test_run_url_reported(self):
+    def test_run_url_not_printed(self):
         responses = [
             {"status": "in_progress", "run_url": "https://github.com/actions/runs/1"},
             {
@@ -288,23 +329,20 @@ class TestRunPollLoop(unittest.TestCase):
             },
         ]
         printed = []
-        with (
-            patch.object(
-                poll_status, "fetch_status", side_effect=self._make_fetch(responses)
-            ),
-            patch("builtins.print", side_effect=printed.append),
+        with patch.object(
+            poll_status, "fetch_status", side_effect=self._make_fetch(responses)
         ):
-            poll_status.run_poll_loop(
-                "example.pilue.co.uk",
-                "ts",
-                "secret",
-                poll_interval=10,
-                max_wait=300,
-                _sleep=lambda x: None,
-            )
+            with patch("builtins.print", side_effect=printed.append):
+                poll_status.run_poll_loop(
+                    "example.pilue.co.uk",
+                    "ts",
+                    "secret",
+                    poll_interval=10,
+                    max_wait=300,
+                    _sleep=lambda x: None,
+                )
         run_url_lines = [line for line in printed if "runs/1" in str(line)]
-        # Should only print the run URL once even though it appears in both responses
-        self.assertEqual(len(run_url_lines), 1)
+        self.assertEqual(len(run_url_lines), 0)
 
 
 if __name__ == "__main__":
