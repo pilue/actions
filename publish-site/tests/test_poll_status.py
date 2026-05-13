@@ -155,7 +155,30 @@ class TestRunPollLoop(unittest.TestCase):
         self.assertFalse(success)
         self.assertIn("conclusion: failure", msg)
 
-    def test_failure_with_logs_prints_them(self):
+    def test_failure_with_logs_writes_to_summary(self):
+        import tempfile
+
+        logs = ["Step failed: npm run build", "Error: Cannot find module 'astro'"]
+        responses = [{"status": "completed", "conclusion": "failure", "logs": logs}]
+        with tempfile.NamedTemporaryFile(mode="r", suffix=".md", delete=False) as f:
+            summary_path = f.name
+        with patch.object(
+            poll_status, "fetch_status", side_effect=self._make_fetch(responses)
+        ):
+            success, msg = poll_status.run_poll_loop(
+                "example.pilue.co.uk",
+                "ts",
+                "secret",
+                _sleep=lambda x: None,
+                _env={"GITHUB_STEP_SUMMARY": summary_path},
+            )
+        self.assertFalse(success)
+        with open(summary_path) as f:
+            summary = f.read()
+        self.assertIn("Step failed: npm run build", summary)
+        self.assertIn("Error: Cannot find module 'astro'", summary)
+
+    def test_failure_with_logs_falls_back_to_stdout_without_summary(self):
         logs = ["Step failed: npm run build", "Error: Cannot find module 'astro'"]
         responses = [{"status": "completed", "conclusion": "failure", "logs": logs}]
         printed = []
@@ -168,13 +191,14 @@ class TestRunPollLoop(unittest.TestCase):
                     "ts",
                     "secret",
                     _sleep=lambda x: None,
+                    _env={},
                 )
         self.assertFalse(success)
         output = "\n".join(str(line) for line in printed)
         self.assertIn("Step failed: npm run build", output)
         self.assertIn("Error: Cannot find module 'astro'", output)
 
-    def test_failure_logs_gha_commands_are_escaped(self):
+    def test_failure_logs_gha_commands_are_escaped_in_stdout_fallback(self):
         logs = ["##[endgroup]", "##[error]something bad"]
         responses = [{"status": "completed", "conclusion": "failure", "logs": logs}]
         printed = []
@@ -187,6 +211,7 @@ class TestRunPollLoop(unittest.TestCase):
                     "ts",
                     "secret",
                     _sleep=lambda x: None,
+                    _env={},
                 )
         output = "\n".join(str(line) for line in printed)
         self.assertNotIn("##[", output)

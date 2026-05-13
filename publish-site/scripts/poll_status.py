@@ -83,6 +83,7 @@ def run_poll_loop(
     poll_interval=15,
     max_wait=1200,
     _sleep=None,
+    _env=None,
 ):
     """
     Poll until the deployment completes, times out, or fails.
@@ -129,15 +130,7 @@ def run_poll_loop(
             if conclusion != "success":
                 logs = data.get("logs")
                 if logs:
-                    if isinstance(logs, list):
-                        for entry in logs:
-                            # Escape GHA workflow command sequences so they are
-                            # printed literally rather than interpreted by the runner.
-                            print(str(entry).replace("##[", "##-["))
-                    else:
-                        print(
-                            f"Unexpected logs format ({type(logs).__name__}): {logs!r}"
-                        )
+                    write_logs(logs, env=_env)
                 else:
                     print(f"No logs in response. Keys: {list(data.keys())}")
             print(f"Deployment {conclusion or 'unknown'}.")
@@ -164,6 +157,32 @@ def run_poll_loop(
         elapsed += poll_interval
 
 
+def write_logs(logs, env=None):
+    """
+    Write deployment logs to GITHUB_STEP_SUMMARY (as a markdown code block)
+    so they survive GHA's output stream closure at step end.
+    Falls back to stdout if the summary file is not available.
+    """
+    if env is None:
+        env = os.environ
+    summary_path = env.get("GITHUB_STEP_SUMMARY", "")
+
+    if isinstance(logs, list):
+        lines = [str(entry) for entry in logs]
+    else:
+        lines = [f"Unexpected logs format ({type(logs).__name__}): {logs!r}"]
+
+    if summary_path:
+        with open(summary_path, "a") as f:
+            f.write("### Deployment failure logs\n\n```\n")
+            for line in lines:
+                f.write(line + "\n")
+            f.write("```\n")
+    else:
+        for line in lines:
+            print(line.replace("##[", "##-["))
+
+
 def main(env=None):
     if env is None:
         env = os.environ
@@ -177,7 +196,9 @@ def main(env=None):
         print("No dispatch_time in response — skipping wait.")
         sys.exit(0)
 
-    success, message = run_poll_loop(domain, dispatch_time, hmac_secret, log_tail_lines)
+    success, message = run_poll_loop(
+        domain, dispatch_time, hmac_secret, log_tail_lines, _env=env
+    )
     print(message)
     sys.exit(0 if success else 1)
 
