@@ -125,9 +125,6 @@ def run_poll_loop(
             if conclusion != "success":
                 logs = data.get("logs")
                 run_id = data.get("run_id", "unknown")
-                print(
-                    f"[debug] logs type={type(logs).__name__!r} len={len(logs) if logs is not None else 'null'}"
-                )
                 if logs:
                     write_logs(logs, env=_env)
                 else:
