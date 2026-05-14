@@ -98,14 +98,12 @@ def run_poll_loop(
     print(f"Polling: {status_url}")
 
     elapsed = 0
-    last_run_url = ""
     consecutive_errors = 0
 
     while True:
         data, fetch_error = fetch_status(status_url, hmac_secret)
         status = data.get("status", "unknown")
         conclusion = data.get("conclusion", "")
-        run_url = data.get("run_url", "")
 
         if fetch_error:
             consecutive_errors += 1
@@ -123,16 +121,19 @@ def run_poll_loop(
         else:
             consecutive_errors = 0
 
-        if run_url and run_url != last_run_url:
-            last_run_url = run_url
-
         if status == "completed":
             if conclusion != "success":
                 logs = data.get("logs")
+                run_id = data.get("run_id", "unknown")
+                print(
+                    f"[debug] logs type={type(logs).__name__!r} len={len(logs) if logs is not None else 'null'}"
+                )
                 if logs:
                     write_logs(logs, env=_env)
                 else:
-                    print(f"No logs in response. Keys: {list(data.keys())}")
+                    print(
+                        f"No logs returned. If you need support, quote run ID: {run_id}"
+                    )
             print(f"Deployment {conclusion or 'unknown'}.")
             if conclusion != "success":
                 return (
