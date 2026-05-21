@@ -32,7 +32,6 @@ The action requires two secrets to be set on the site repo:
 - uses: pilue/actions/publish-site@main
   with:
     domain: example.pilue.co.uk
-    repo: https://github.com/pilue/site-example
     preview: "false"
     hmac_secret: ${{ secrets.PUBLISH_HMAC_SECRET }}
 ```
@@ -43,7 +42,6 @@ The action requires two secrets to be set on the site repo:
 - uses: pilue/actions/publish-site@main
   with:
     domain: example.pilue.co.uk
-    repo: https://github.com/pilue/site-example
     preview: "true"
     hmac_secret: ${{ secrets.PUBLISH_HMAC_SECRET }}
     source_token: ${{ secrets.PUBLISH_TOKEN }}
@@ -55,8 +53,6 @@ The action requires two secrets to be set on the site repo:
 - uses: pilue/actions/publish-site@main
   with:
     domain: example.pilue.co.uk
-    repo: https://github.com/pilue/site-example
-    preview: "true"
     teardown: "true"
     hmac_secret: ${{ secrets.PUBLISH_HMAC_SECRET }}
 ```
@@ -66,9 +62,9 @@ The action requires two secrets to be set on the site repo:
 | Input | Required | Description |
 |---|---|---|
 | `domain` | yes | Registered domain, e.g. `example.pilue.co.uk` |
-| `repo` | yes | HTTPS clone URL of the source repo |
 | `preview` | yes | `"true"` for preview deploy, `"false"` for production |
 | `hmac_secret` | yes | Shared HMAC secret for this domain |
+| `repo` | no | HTTPS clone URL of the source repo. Auto-detected from the GitHub context (`GITHUB_SERVER_URL` + `GITHUB_REPOSITORY`) if not set. |
 | `ref` | no | Git ref to build (branch/tag/SHA). Defaults to the PR head branch on pull request events, or the branch/tag name on push events. |
 | `source_sha` | no | HEAD SHA of the source commit — ensures a unique image tag per push. Auto-detected from the current commit or PR head. |
 | `pr_number` | no | PR number — used to post a comment when the preview URL is ready. Auto-detected on pull request events. |
