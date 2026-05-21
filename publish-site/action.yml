@@ -6,8 +6,9 @@ inputs:
     description: Registered domain, e.g. site.example.co.uk
     required: true
   repo:
-    description: HTTPS clone URL of the source repo
-    required: true
+    description: HTTPS clone URL of the source repo. Auto-detected from the GitHub context if not set.
+    required: false
+    default: ""
   preview:
     description: true for preview deploy, false for production deploy
     required: true

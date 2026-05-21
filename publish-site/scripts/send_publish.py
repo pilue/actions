@@ -57,6 +57,14 @@ def resolve_inputs(env, event):
     if not pr_number and pr.get("number"):
         pr_number = str(pr["number"])
 
+    # repo: explicit → constructed from GitHub context
+    repo = env.get("REPO", "").strip()
+    if not repo:
+        server = env.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
+        repository = env.get("GITHUB_REPOSITORY", "")
+        if repository:
+            repo = f"{server}/{repository}"
+
     # notification_token falls back to source_token
     source_token = env.get("SOURCE_TOKEN", "").strip()
     notification_token = env.get("NOTIFICATION_TOKEN", "").strip()
@@ -65,7 +73,7 @@ def resolve_inputs(env, event):
 
     return {
         "domain": env.get("DOMAIN", ""),
-        "repo": env.get("REPO", ""),
+        "repo": repo,
         "ref": ref,
         "preview": env.get("PREVIEW", "false").lower() == "true",
         "teardown": env.get("TEARDOWN", "false").lower() == "true",
