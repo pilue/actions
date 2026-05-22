@@ -22,7 +22,7 @@ The action requires two secrets to be set on the site repo:
 | Secret | Description |
 |---|---|
 | `PUBLISH_HMAC_SECRET` | Per-domain HMAC secret (provided during onboarding to `davidcloud`) |
-| `PUBLISH_TOKEN` | Fine-grained PAT with `contents: read` on the site repo (for cloning) and `pull_requests: write` on the site repo (for PR comments) |
+| `SOURCE_TOKEN` | Fine-grained PAT with `contents: read` on the site repo (for cloning) and `pull_requests: write` on the site repo (for PR comments) |
 
 ### Usage
 
@@ -44,7 +44,7 @@ The action requires two secrets to be set on the site repo:
     domain: example.pilue.co.uk
     preview: "true"
     hmac_secret: ${{ secrets.PUBLISH_HMAC_SECRET }}
-    source_token: ${{ secrets.PUBLISH_TOKEN }}
+    source_token: ${{ secrets.SOURCE_TOKEN }}
 ```
 
 #### Teardown preview (on pull request close)
